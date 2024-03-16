@@ -14,21 +14,37 @@ def loop_through_images(directory):
         images.append(rgb_img)
     return images
 
-
 script_directory = './dataset'
 dataset_directory = os.path.abspath(script_directory)
 dataset_images = loop_through_images(dataset_directory)
 
-cv2.imshow("stored_images", dataset_images[3])
-cv2.waitKey(0)
+# Open the default camera (usually the first camera connected)
+video_capture = cv2.VideoCapture(0)
 
+while True:
+    # Capture frame-by-frame
+    ret, frame = video_capture.read()
 
+    # Convert the image from BGR color (OpenCV) to RGB color (face_recognition)
+    rgb_frame = frame[:, :, ::-1]
 
+    # Find all face locations in the frame
+    face_locations = fr.face_locations(rgb_frame)
 
-# face_locations = fr.face_locations(rgb_img)[0]
-# copy = rgb_img.copy()
-#
-# cv2.rectangle(copy, (face_locations[3], face_locations[0]),(face_locations[1], face_locations[2]), (255,0,255), 2)
-#
-# cv2.imshow('copy', copy)
-# cv2.imshow('img', rgb_img)
+    # Draw a rectangle around each face
+    for top, right, bottom, left in face_locations:
+        # Draw a rectangle around the face
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+
+    # Flip the frame horizontally
+    flipped_frame = cv2.flip(frame, 1)
+
+    cv2.imshow('Flipped Video', flipped_frame)
+
+    # Break the loop when 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the video capture object and close the OpenCV windows
+video_capture.release()
+cv2.destroyAllWindows()
