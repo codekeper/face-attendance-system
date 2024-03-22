@@ -3,48 +3,71 @@ import cv2
 import numpy as np
 import face_recognition as fr
 
-# load image and change the color scheme from BGR to RGB:
-def loop_through_images(directory):
+# Load images from the dataset directory
+def load_images_from_directory(directory):
     images = []
     image_files = os.listdir(directory)
     for image_file in image_files:
         image_path = os.path.join(directory, image_file)
         image = fr.load_image_file(image_path)
-        rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        images.append(rgb_img)
+        images.append(image)
     return images
 
-script_directory = './dataset'
-dataset_directory = os.path.abspath(script_directory)
-dataset_images = loop_through_images(dataset_directory)
+# Load known face encodings
+def load_known_face_encodings(dataset_images):
+    known_face_encodings = []
+    for image in dataset_images:
+        face_encoding = fr.face_encodings(image)[0]
+        known_face_encodings.append(face_encoding)
+    return known_face_encodings
 
-# Open the default camera (usually the first camera connected)
+# Load images from the dataset
+dataset_dir = './dataset'
+dataset_images = load_images_from_directory(dataset_dir)
+
+# Generate encodings for the images in the dataset
+known_face_encodings = load_known_face_encodings(dataset_images)
+
+# Open the default camera
 video_capture = cv2.VideoCapture(0)
 
 while True:
-    # Capture frame-by-frame
     ret, frame = video_capture.read()
 
-    # Convert the image from BGR color (OpenCV) to RGB color (face_recognition)
-    rgb_frame = frame[:, :, ::-1]
+    # rgb_frame = frame[:, :, ::-1]
 
-    # Find all face locations in the frame
-    face_locations = fr.face_locations(rgb_frame)
-
-    # Draw a rectangle around each face
-    for top, right, bottom, left in face_locations:
-        # Draw a rectangle around the face
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-
-    # Flip the frame horizontally
     flipped_frame = cv2.flip(frame, 1)
 
-    cv2.imshow('Flipped Video', flipped_frame)
+    face_locations = fr.face_locations(flipped_frame)
+
+    face_encodings = fr.face_encodings(frame, face_locations)
+
+    for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+        matches = fr.compare_faces(known_face_encodings, face_encoding)
+        if True in matches:
+            match_index = matches.index(True)
+            # Known face: Green rectangle
+            rectangle_color = (0, 255, 0)
+            text_color = (0, 255, 0)
+            label = "Known Face"
+        else:
+            # Unknown face: Red rectangle
+            rectangle_color = (0, 0, 255)
+            text_color = (0, 0, 255)
+            label = "Unknown Face"
+
+        # Draw a rectangle around the face
+        cv2.rectangle(flipped_frame, (left, top), (right, bottom), rectangle_color, 2)
+
+        # Draw the text
+        cv2.putText(flipped_frame, label, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 2)
+
+    # Display the resulting frame
+    cv2.imshow('Video', flipped_frame)
 
     # Break the loop when 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release the video capture object and close the OpenCV windows
 video_capture.release()
 cv2.destroyAllWindows()
